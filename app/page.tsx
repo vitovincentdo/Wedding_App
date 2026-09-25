@@ -161,6 +161,7 @@ export default function Home() {
   const impact = Math.min(1, Math.max(0, (scrollProgress - 0.61) / 0.07));
   const breakProgress = Math.min(1, Math.max(0, (scrollProgress - 0.64) / 0.2));
   const reveal = Math.min(1, Math.max(0, (scrollProgress - 0.76) / 0.18));
+  const collision = Math.max(0, 1 - Math.abs(scrollProgress - .64) / .035);
   const sceneStyle = {
     '--scene-progress': scrollProgress,
     '--approach': approach,
@@ -168,28 +169,19 @@ export default function Home() {
     '--break': breakProgress,
     '--reveal': reveal,
   } as CSSProperties;
-  const rackFragments = [
-    { clip: 'polygon(0 0, 36% 0, 30% 52%, 0 66%)', dx: -34, dy: -18, rot: -24 },
-    { clip: 'polygon(32% 0, 67% 0, 63% 47%, 30% 52%)', dx: -12, dy: -29, rot: -13 },
-    { clip: 'polygon(64% 0, 100% 0, 100% 66%, 63% 47%)', dx: 31, dy: -17, rot: 27 },
-    { clip: 'polygon(0 63%, 30% 50%, 48% 73%, 34% 100%, 0 100%)', dx: -39, dy: 16, rot: -31 },
-    { clip: 'polygon(29% 50%, 63% 46%, 72% 72%, 49% 83%)', dx: 2, dy: 18, rot: 18 },
-    { clip: 'polygon(63% 46%, 100% 63%, 100% 100%, 70% 100%, 71% 72%)', dx: 40, dy: 13, rot: 34 },
-    { clip: 'polygon(33% 76%, 50% 72%, 71% 70%, 70% 100%, 34% 100%)', dx: -8, dy: 37, rot: -17 },
-  ];
 
   return (
     <main className="site-shell">
       <section className="break-sequence" ref={sequenceRef} style={sceneStyle} aria-label="Animasi pembuka billiard yang dikendalikan dengan scroll">
-        <div className="break-stage">
+        <div className="break-stage" style={{ transform: `translate(${collision * 3}px, ${collision * -2}px)` }}>
           <Image
-            src="/images/billiard-break.jpg"
+            src="/images/empty-table.jpg"
             alt="Meja billiard elegan"
             fill
             priority
             className="break-background"
             sizes="100vw"
-            style={{ objectPosition: `center ${66 + scrollProgress * 7}%`, filter: `brightness(${.38 + scrollProgress * .11}) saturate(.78)`, transform: `scale(${1.05 + scrollProgress * .12})` }}
+            style={{ objectPosition: `center ${52 + scrollProgress * 3}%`, filter: `brightness(${.44 + scrollProgress * .08}) saturate(.84)`, transform: `scale(${1.03 + scrollProgress * .08})` }}
           />
           <div className="break-vignette" />
           <div className="ambient-light" style={{ transform: `translateY(${scrollProgress * 7}vh)` }} />
@@ -201,17 +193,24 @@ export default function Home() {
             <div className="guest-card"><span>Kepada Yth.</span><strong>Tamu Undangan</strong><small>Mohon maaf apabila ada kesalahan penulisan nama.</small></div>
           </div>
 
-          <div className="rack-source" aria-hidden="true" style={{ transform: `translate(-50%, -50%) scale(${.58 + approach * .42})`, opacity: .15 + approach * .85 }}>
-            {rackFragments.map((fragment, index) => (
-              <span
-                className="rack-fragment"
-                key={index}
-                style={{ clipPath: fragment.clip, transform: `translate(${fragment.dx * breakProgress}vw, ${fragment.dy * breakProgress}vh) rotate(${fragment.rot * breakProgress}deg) scale(${1 + breakProgress * .35})`, opacity: 1 - reveal * .72 }}
-              >
-                <Image src="/images/ball-rack.png" alt="" fill sizes="min(68vw, 510px)" />
-              </span>
-            ))}
-          </div>
+          <Image
+            src="/images/ball-rack.png"
+            width={760}
+            height={760}
+            alt="Susunan bola siap di-break"
+            className="intact-rack"
+            style={{ transform: `translate(-50%, -50%) scale(${.56 + approach * .34 + collision * .05})`, opacity: Math.max(0, .1 + approach * .9 - breakProgress * 1.35) }}
+            priority
+          />
+          <Image
+            src="/images/scattered-balls.png"
+            width={1000}
+            height={1000}
+            alt="Bola billiard menyebar setelah break"
+            className="scattered-rack"
+            style={{ transform: `translate(-50%, -50%) scale(${.42 + breakProgress * .72})`, opacity: Math.min(1, breakProgress * 1.8) * (1 - reveal * .58) }}
+            priority
+          />
           <Image
             src="/images/cue-ball.png"
             width={280}
