@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { CSSProperties, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDown,
   CalendarDays,
@@ -52,21 +52,36 @@ async function saveSubmission(payload: Record<string, unknown>) {
 }
 
 export default function Home() {
-  const [opened, setOpened] = useState(false);
-  const [breaking, setBreaking] = useState(false);
+  const sequenceRef = useRef<HTMLElement>(null);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const [attendance, setAttendance] = useState<Attendance>('hadir');
   const [rsvpState, setRsvpState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [wishState, setWishState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [copied, setCopied] = useState(false);
   const countdown = useCountdown();
 
-  function openInvitation() {
-    setBreaking(true);
-    window.setTimeout(() => {
-      setOpened(true);
-      document.body.classList.add('invitation-open');
-    }, 820);
-  }
+  useEffect(() => {
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const element = sequenceRef.current;
+      if (!element) return;
+      const rect = element.getBoundingClientRect();
+      const distance = Math.max(1, element.offsetHeight - window.innerHeight);
+      setScrollProgress(Math.min(1, Math.max(0, -rect.top / distance)));
+    };
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   useEffect(() => {
     const modelContext = (
@@ -142,27 +157,89 @@ export default function Home() {
     window.setTimeout(() => setCopied(false), 1800);
   }
 
+  const approach = Math.min(1, Math.max(0, (scrollProgress - 0.16) / 0.46));
+  const impact = Math.min(1, Math.max(0, (scrollProgress - 0.61) / 0.07));
+  const breakProgress = Math.min(1, Math.max(0, (scrollProgress - 0.64) / 0.2));
+  const reveal = Math.min(1, Math.max(0, (scrollProgress - 0.76) / 0.18));
+  const sceneStyle = {
+    '--scene-progress': scrollProgress,
+    '--approach': approach,
+    '--impact': impact,
+    '--break': breakProgress,
+    '--reveal': reveal,
+  } as CSSProperties;
+  const rackFragments = [
+    { clip: 'polygon(0 0, 36% 0, 30% 52%, 0 66%)', dx: -34, dy: -18, rot: -24 },
+    { clip: 'polygon(32% 0, 67% 0, 63% 47%, 30% 52%)', dx: -12, dy: -29, rot: -13 },
+    { clip: 'polygon(64% 0, 100% 0, 100% 66%, 63% 47%)', dx: 31, dy: -17, rot: 27 },
+    { clip: 'polygon(0 63%, 30% 50%, 48% 73%, 34% 100%, 0 100%)', dx: -39, dy: 16, rot: -31 },
+    { clip: 'polygon(29% 50%, 63% 46%, 72% 72%, 49% 83%)', dx: 2, dy: 18, rot: 18 },
+    { clip: 'polygon(63% 46%, 100% 63%, 100% 100%, 70% 100%, 71% 72%)', dx: 40, dy: 13, rot: 34 },
+    { clip: 'polygon(33% 76%, 50% 72%, 71% 70%, 70% 100%, 34% 100%)', dx: -8, dy: 37, rot: -17 },
+  ];
+
   return (
     <main className="site-shell">
-      <section className={`invitation-cover ${breaking ? 'is-breaking' : ''} ${opened ? 'is-open' : ''}`} aria-hidden={opened}>
-        <Image src="/images/billiard-break.jpg" alt="Bola-bola billiard sesaat setelah break" fill priority className="cover-image" sizes="100vw" />
-        <div className="cover-vignette" />
-        <div className="impact-flash" />
-        <div className="cover-copy">
-          <span className="eyebrow">The wedding invitation of</span>
-          <h1><span>Alya</span><i>&amp;</i><span>Raka</span></h1>
-          <p className="cover-date">18 · 07 · 2027</p>
-          <div className="guest-card">
-            <span>Kepada Yth.</span><strong>Tamu Undangan</strong><small>Mohon maaf apabila ada kesalahan penulisan nama.</small>
+      <section className="break-sequence" ref={sequenceRef} style={sceneStyle} aria-label="Animasi pembuka billiard yang dikendalikan dengan scroll">
+        <div className="break-stage">
+          <Image
+            src="/images/billiard-break.jpg"
+            alt="Meja billiard elegan"
+            fill
+            priority
+            className="break-background"
+            sizes="100vw"
+            style={{ objectPosition: `center ${66 + scrollProgress * 7}%`, filter: `brightness(${.38 + scrollProgress * .11}) saturate(.78)`, transform: `scale(${1.05 + scrollProgress * .12})` }}
+          />
+          <div className="break-vignette" />
+          <div className="ambient-light" style={{ transform: `translateY(${scrollProgress * 7}vh)` }} />
+
+          <div className="opening-copy" style={{ opacity: Math.max(0, 1 - approach * 1.55), transform: `translateY(${-approach * 8}vh) scale(${1 - approach * .06})` }}>
+            <span className="eyebrow">The wedding invitation of</span>
+            <h1><span>Alya</span><i>&amp;</i><span>Raka</span></h1>
+            <p className="cover-date">18 · 07 · 2027</p>
+            <div className="guest-card"><span>Kepada Yth.</span><strong>Tamu Undangan</strong><small>Mohon maaf apabila ada kesalahan penulisan nama.</small></div>
           </div>
-          <Button onClick={openInvitation} disabled={breaking} className="open-button">
-            <span>{breaking ? 'Make the break…' : 'Buka Undangan'}</span><ArrowDown aria-hidden="true" />
-          </Button>
+
+          <div className="rack-source" aria-hidden="true" style={{ transform: `translate(-50%, -50%) scale(${.58 + approach * .42})`, opacity: .15 + approach * .85 }}>
+            {rackFragments.map((fragment, index) => (
+              <span
+                className="rack-fragment"
+                key={index}
+                style={{ clipPath: fragment.clip, transform: `translate(${fragment.dx * breakProgress}vw, ${fragment.dy * breakProgress}vh) rotate(${fragment.rot * breakProgress}deg) scale(${1 + breakProgress * .35})`, opacity: 1 - reveal * .72 }}
+              >
+                <Image src="/images/ball-rack.png" alt="" fill sizes="min(68vw, 510px)" />
+              </span>
+            ))}
+          </div>
+          <Image
+            src="/images/cue-ball.png"
+            width={280}
+            height={280}
+            alt="Bola putih bergerak menuju susunan bola"
+            className="moving-cue-ball"
+            style={{ top: `${86 - approach * 48}%`, transform: `translate(-50%, -50%) scale(${0.72 + approach * 0.28})`, opacity: Math.max(0, 1 - breakProgress * 1.4) }}
+            priority
+          />
+          <div className="impact-ring" aria-hidden="true" style={{ opacity: impact * (1 - breakProgress), transform: `translate(-50%, -50%) scale(${1 + impact * 8})` }} />
+          <div className="speed-lines" aria-hidden="true" style={{ opacity: impact * (1 - reveal) }}><i /><i /><i /><i /></div>
+
+          <div className="reveal-copy" style={{ opacity: reveal, transform: `translateY(${(1 - reveal) * 9}vh) scale(${.9 + reveal * .1})` }}>
+            <span className="eyebrow">The perfect break</span>
+            <h2>Alya <i>&amp;</i> Raka</h2>
+            <p>One table. Two players. One forever.</p>
+          </div>
+
+          <div className="scroll-instruction">
+            <span>{scrollProgress < .6 ? 'Scroll to make the break' : scrollProgress < .82 ? 'Keep going' : 'Enter the story'}</span>
+            <ArrowDown aria-hidden="true" />
+          </div>
+          <div className="sequence-progress"><span /></div>
+          <div className="cover-index">No. 08</div>
         </div>
-        <div className="cover-index">No. 08</div>
       </section>
 
-      <div className={`invitation-content ${opened ? 'is-visible' : ''}`}>
+      <div className="invitation-content is-visible">
         <header className="topbar">
           <a href="#story" className="monogram" aria-label="Alya dan Raka">A<span>·</span>R</a>
           <span className="topbar-date">18 July 2027</span>
