@@ -23,8 +23,9 @@ const WEDDING_DATE = new Date('2027-07-18T10:00:00+07:00');
 type Attendance = 'hadir' | 'tidak-hadir' | 'ragu';
 
 function useCountdown() {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(WEDDING_DATE.getTime());
   useEffect(() => {
+    setNow(Date.now());
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
