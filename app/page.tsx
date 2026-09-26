@@ -57,23 +57,55 @@ export default function Home() {
   const countdown = useCountdown();
 
   useEffect(() => {
-    let frame = 0;
+    let measureFrame = 0;
+    let smoothingFrame = 0;
+    let targetProgress = 0;
+    let renderedProgress = 0;
+    const shouldSmoothTouchScroll =
+      window.matchMedia('(pointer: coarse)').matches &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const renderSmoothedProgress = () => {
+      const distance = targetProgress - renderedProgress;
+      renderedProgress += distance * 0.18;
+      setScrollProgress(renderedProgress);
+
+      if (Math.abs(distance) > 0.00025) {
+        smoothingFrame = window.requestAnimationFrame(renderSmoothedProgress);
+      } else {
+        renderedProgress = targetProgress;
+        setScrollProgress(targetProgress);
+        smoothingFrame = 0;
+      }
+    };
+
     const update = () => {
-      frame = 0;
+      measureFrame = 0;
       const element = sequenceRef.current;
       if (element) {
         const rect = element.getBoundingClientRect();
         const distance = Math.max(1, element.offsetHeight - window.innerHeight);
-        setScrollProgress(Math.min(1, Math.max(0, -rect.top / distance)));
+        targetProgress = Math.min(1, Math.max(0, -rect.top / distance));
+        if (shouldSmoothTouchScroll) {
+          if (!smoothingFrame) smoothingFrame = window.requestAnimationFrame(renderSmoothedProgress);
+        } else {
+          renderedProgress = targetProgress;
+          setScrollProgress(targetProgress);
+        }
       }
       const pageDistance = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
       document.documentElement.style.setProperty('--page-progress', String(window.scrollY / pageDistance));
     };
-    const onScroll = () => { if (!frame) frame = window.requestAnimationFrame(update); };
+    const onScroll = () => { if (!measureFrame) measureFrame = window.requestAnimationFrame(update); };
     update();
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
-    return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); if (frame) window.cancelAnimationFrame(frame); };
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (measureFrame) window.cancelAnimationFrame(measureFrame);
+      if (smoothingFrame) window.cancelAnimationFrame(smoothingFrame);
+    };
   }, []);
 
   useEffect(() => {
@@ -121,15 +153,16 @@ export default function Home() {
 
   const approach = smoothProgress(scrollProgress, 0.08, 0.22);
   const pull = smoothProgress(scrollProgress, 0.22, 0.4);
-  const strike = smoothProgress(scrollProgress, 0.4, 0.5);
-  const travel = smoothProgress(scrollProgress, 0.49, 0.7);
-  const breakProgress = smoothProgress(scrollProgress, 0.7, 0.87);
+  const strike = smoothProgress(scrollProgress, 0.4, 0.54);
+  const travel = smoothProgress(scrollProgress, 0.54, 0.72);
+  const breakProgress = smoothProgress(scrollProgress, 0.72, 0.88);
   const reveal = smoothProgress(scrollProgress, 0.84, 0.97);
-  const impact = Math.max(0, 1 - Math.abs(scrollProgress - 0.7) / 0.042);
+  const cueContact = Math.max(0, 1 - Math.abs(scrollProgress - 0.54) / 0.035);
+  const impact = Math.max(0, 1 - Math.abs(scrollProgress - 0.72) / 0.042);
   const collision = impact * impact * (3 - 2 * impact);
   const cueTop = 112 + pull * 9 - strike * 12;
   const ballTop = 77 - travel * 38;
-  const ballCompression = Math.sin(Math.min(1, strike) * Math.PI) * (1 - travel);
+  const ballCompression = cueContact * cueContact * (3 - 2 * cueContact) * (1 - travel);
   const sceneStyle = {
     '--scene-progress': scrollProgress,
     '--approach': approach,
@@ -153,12 +186,12 @@ export default function Home() {
           <Image src="/images/scattered-balls.png" width={1000} height={1000} alt="Bola billiard menyebar setelah break" className="scattered-rack" style={{ transform: `translate(-50%, -50%) scale(${0.52 + breakProgress * 0.68}) rotate(${breakProgress * 5}deg)`, opacity: smoothProgress(breakProgress, 0.04, 0.55) * (1 - reveal * 0.48) }} priority />
           <div className="cue-aim-line" aria-hidden="true" style={{ opacity: approach * (1 - travel) * 0.7, transform: `scaleY(${0.4 + pull * 0.6})` }} />
           <Image src="/images/pool-cue.png" width={2172} height={724} alt="Tongkat billiard ditarik sebelum memukul" className="moving-cue-stick" style={{ top: `${cueTop}%`, opacity: approach * (1 - smoothProgress(travel, 0.25, 0.92)), filter: `drop-shadow(0 1.2rem 1rem rgba(0,0,0,.55)) blur(${travel * 0.7}px)` }} priority />
-          <div className="cue-ball-trail" aria-hidden="true" style={{ top: `${ballTop + 7}%`, height: `${travel * 35}vh`, opacity: travel * (1 - breakProgress) }} />
+          <div className="cue-ball-trail" aria-hidden="true" style={{ top: `${ballTop + 7}%`, height: `${travel * 35}svh`, opacity: travel * (1 - breakProgress) }} />
           <Image src="/images/cue-ball.png" width={280} height={280} alt="Bola putih meluncur menuju susunan bola" className="moving-cue-ball" style={{ top: `${ballTop}%`, transform: `translate(-50%, -50%) scaleX(${0.82 + approach * 0.18 + ballCompression * 0.08}) scaleY(${0.82 + approach * 0.18 - ballCompression * 0.08})`, opacity: approach * (1 - smoothProgress(breakProgress, 0.12, 0.7)), filter: `drop-shadow(0 ${1.2 + travel * 1.2}rem ${0.8 + travel}px rgba(0,0,0,.58)) blur(${travel * 0.35}px)` }} priority />
           <div className="chalk-burst" aria-hidden="true"><i /><i /><i /><i /><i /></div>
           <div className="impact-ring" aria-hidden="true" /><div className="speed-lines" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
           <div className="reveal-copy"><span className="eyebrow">The perfect break</span><h2>Gerald <i>&amp;</i> Angie</h2><p>One table. Two players. One forever.</p></div>
-          <div className="scroll-instruction"><span>{scrollProgress < 0.2 ? 'Scroll to line up the shot' : scrollProgress < 0.4 ? 'Pull back' : scrollProgress < 0.7 ? 'Take the shot' : scrollProgress < 0.87 ? 'Watch the break' : 'Enter the story'}</span><ArrowDown aria-hidden="true" /></div>
+          <div className="scroll-instruction"><span>{scrollProgress < 0.2 ? 'Scroll to line up the shot' : scrollProgress < 0.4 ? 'Pull back' : scrollProgress < 0.72 ? 'Take the shot' : scrollProgress < 0.88 ? 'Watch the break' : 'Enter the story'}</span><ArrowDown aria-hidden="true" /></div>
           <div className="sequence-progress"><span /></div><div className="cover-index">Private table · No. 08</div>
         </div>
       </section>
