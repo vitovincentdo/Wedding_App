@@ -1,4 +1,6 @@
-import { env } from 'cloudflare:workers';
+import { insertSubmission } from '@/db';
+
+export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   try {
@@ -21,23 +23,26 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: 'Ucapan terlalu singkat.' }, { status: 400 });
     }
 
-    await env.DB.prepare(
-      `INSERT INTO submissions (id, kind, name, attendance, guests, note, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(
-        crypto.randomUUID(),
-        body.kind,
-        name.slice(0, 120),
-        body.attendance || null,
-        body.kind === 'rsvp' ? body.guests : null,
-        body.note?.trim().slice(0, 1000) || null,
-        Math.floor(Date.now() / 1000),
-      )
-      .run();
+    await insertSubmission({
+      id: crypto.randomUUID(),
+      kind: body.kind as 'rsvp' | 'wish',
+      name: name.slice(0, 120),
+      attendance: body.attendance || null,
+      guests: body.kind === 'rsvp' ? body.guests || null : null,
+      note: body.note?.trim().slice(0, 1000) || null,
+    });
 
     return Response.json({ ok: true });
-  } catch {
-    return Response.json({ ok: false, message: 'Data belum dapat disimpan.' }, { status: 500 });
+  } catch (error) {
+    const isDatabaseMissing = error instanceof Error && error.message.includes('DATABASE_URL');
+    return Response.json(
+      {
+        ok: false,
+        message: isDatabaseMissing
+          ? 'Penyimpanan RSVP belum dikonfigurasi.'
+          : 'Data belum dapat disimpan.',
+      },
+      { status: isDatabaseMissing ? 503 : 500 },
+    );
   }
 }
