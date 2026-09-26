@@ -42,6 +42,11 @@ async function saveSubmission(payload: Record<string, unknown>) {
   return result;
 }
 
+function smoothProgress(value: number, start: number, end: number) {
+  const t = Math.min(1, Math.max(0, (value - start) / (end - start)));
+  return t * t * (3 - 2 * t);
+}
+
 export default function Home() {
   const sequenceRef = useRef<HTMLElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -114,27 +119,46 @@ export default function Home() {
 
   async function copyAccount() { await navigator.clipboard.writeText('1234567890'); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
 
-  const approach = Math.min(1, Math.max(0, (scrollProgress - 0.12) / 0.48));
-  const impact = Math.min(1, Math.max(0, (scrollProgress - 0.58) / 0.07));
-  const breakProgress = Math.min(1, Math.max(0, (scrollProgress - 0.61) / 0.22));
-  const reveal = Math.min(1, Math.max(0, (scrollProgress - 0.78) / 0.16));
-  const collision = Math.max(0, 1 - Math.abs(scrollProgress - 0.61) / 0.035);
-  const sceneStyle = { '--scene-progress': scrollProgress, '--approach': approach, '--impact': impact, '--break': breakProgress, '--reveal': reveal } as CSSProperties;
+  const approach = smoothProgress(scrollProgress, 0.08, 0.22);
+  const pull = smoothProgress(scrollProgress, 0.22, 0.4);
+  const strike = smoothProgress(scrollProgress, 0.4, 0.5);
+  const travel = smoothProgress(scrollProgress, 0.49, 0.7);
+  const breakProgress = smoothProgress(scrollProgress, 0.7, 0.87);
+  const reveal = smoothProgress(scrollProgress, 0.84, 0.97);
+  const impact = Math.max(0, 1 - Math.abs(scrollProgress - 0.7) / 0.042);
+  const collision = impact * impact * (3 - 2 * impact);
+  const cueTop = 112 + pull * 9 - strike * 12;
+  const ballTop = 77 - travel * 38;
+  const ballCompression = Math.sin(Math.min(1, strike) * Math.PI) * (1 - travel);
+  const sceneStyle = {
+    '--scene-progress': scrollProgress,
+    '--approach': approach,
+    '--pull': pull,
+    '--strike': strike,
+    '--travel': travel,
+    '--impact': impact,
+    '--break': breakProgress,
+    '--reveal': reveal,
+  } as CSSProperties;
 
   return (
     <main className="site-shell">
       <div className="page-progress" aria-hidden="true"><span /></div>
       <section className="break-sequence" ref={sequenceRef} style={sceneStyle} aria-label="Animasi pembuka billiard yang dikendalikan dengan scroll">
-        <div className="break-stage" style={{ transform: `translate(${collision * 3}px, ${collision * -2}px)` }}>
+        <div className="break-stage" style={{ transform: `translate(${collision * 1.2}px, ${collision * -0.8}px)` }}>
           <Image src="/images/empty-table.jpg" alt="Meja billiard elegan" fill priority className="break-background" sizes="100vw" />
           <div className="break-vignette" /><div className="ambient-light" /><div className="table-line table-line-left" /><div className="table-line table-line-right" />
           <div className="opening-copy"><span className="eyebrow">The wedding invitation of</span><h1><span>Alya</span><i>&amp;</i><span>Raka</span></h1><p className="cover-date">18 · 07 · 2027</p><div className="guest-card"><span>Kepada Yth.</span><strong>Tamu Undangan</strong><small>Mohon maaf apabila ada kesalahan penulisan nama.</small></div></div>
-          <Image src="/images/ball-rack.png" width={760} height={760} alt="Susunan bola siap di-break" className="intact-rack" style={{ transform: `translate(-50%, -50%) scale(${0.48 + approach * 0.42 + collision * 0.05})`, opacity: Math.max(0, approach * 1.2 - breakProgress * 1.4) }} priority />
-          <Image src="/images/scattered-balls.png" width={1000} height={1000} alt="Bola billiard menyebar setelah break" className="scattered-rack" style={{ transform: `translate(-50%, -50%) scale(${0.36 + breakProgress * 0.8}) rotate(${breakProgress * 4}deg)`, opacity: Math.min(1, breakProgress * 1.8) * (1 - reveal * 0.54) }} priority />
-          <Image src="/images/cue-ball.png" width={280} height={280} alt="Bola putih bergerak menuju susunan bola" className="moving-cue-ball" style={{ top: `${89 - approach * 50}%`, transform: `translate(-50%, -50%) scale(${0.72 + approach * 0.28})`, opacity: Math.max(0, approach * 1.5 - breakProgress * 1.5) }} priority />
+          <Image src="/images/ball-rack.png" width={760} height={760} alt="Susunan bola siap di-break" className="intact-rack" style={{ transform: `translate(-50%, -50%) scale(${0.72 + approach * 0.18 + collision * 0.035})`, opacity: Math.max(0, approach * 1.25 - breakProgress * 1.45) }} priority />
+          <Image src="/images/scattered-balls.png" width={1000} height={1000} alt="Bola billiard menyebar setelah break" className="scattered-rack" style={{ transform: `translate(-50%, -50%) scale(${0.52 + breakProgress * 0.68}) rotate(${breakProgress * 5}deg)`, opacity: smoothProgress(breakProgress, 0.04, 0.55) * (1 - reveal * 0.48) }} priority />
+          <div className="cue-aim-line" aria-hidden="true" style={{ opacity: approach * (1 - travel) * 0.7, transform: `scaleY(${0.4 + pull * 0.6})` }} />
+          <Image src="/images/pool-cue.png" width={2172} height={724} alt="Tongkat billiard ditarik sebelum memukul" className="moving-cue-stick" style={{ top: `${cueTop}%`, opacity: approach * (1 - smoothProgress(travel, 0.25, 0.92)), filter: `drop-shadow(0 1.2rem 1rem rgba(0,0,0,.55)) blur(${travel * 0.7}px)` }} priority />
+          <div className="cue-ball-trail" aria-hidden="true" style={{ top: `${ballTop + 7}%`, height: `${travel * 35}vh`, opacity: travel * (1 - breakProgress) }} />
+          <Image src="/images/cue-ball.png" width={280} height={280} alt="Bola putih meluncur menuju susunan bola" className="moving-cue-ball" style={{ top: `${ballTop}%`, transform: `translate(-50%, -50%) scaleX(${0.82 + approach * 0.18 + ballCompression * 0.08}) scaleY(${0.82 + approach * 0.18 - ballCompression * 0.08})`, opacity: approach * (1 - smoothProgress(breakProgress, 0.12, 0.7)), filter: `drop-shadow(0 ${1.2 + travel * 1.2}rem ${0.8 + travel}px rgba(0,0,0,.58)) blur(${travel * 0.35}px)` }} priority />
+          <div className="chalk-burst" aria-hidden="true"><i /><i /><i /><i /><i /></div>
           <div className="impact-ring" aria-hidden="true" /><div className="speed-lines" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
           <div className="reveal-copy"><span className="eyebrow">The perfect break</span><h2>Alya <i>&amp;</i> Raka</h2><p>One table. Two players. One forever.</p></div>
-          <div className="scroll-instruction"><span>{scrollProgress < 0.56 ? 'Scroll to take the shot' : scrollProgress < 0.8 ? 'Make the break' : 'Enter the story'}</span><ArrowDown aria-hidden="true" /></div>
+          <div className="scroll-instruction"><span>{scrollProgress < 0.2 ? 'Scroll to line up the shot' : scrollProgress < 0.4 ? 'Pull back' : scrollProgress < 0.7 ? 'Take the shot' : scrollProgress < 0.87 ? 'Watch the break' : 'Enter the story'}</span><ArrowDown aria-hidden="true" /></div>
           <div className="sequence-progress"><span /></div><div className="cover-index">Private table · No. 08</div>
         </div>
       </section>
